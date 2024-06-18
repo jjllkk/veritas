@@ -1,0 +1,28 @@
+# Build artifacts
+web/veritas.wasm
+
+# Go binaries (if you build them)
+*.exe
+*.test
+*.o
+*.wasm
+
+# Temporary files
+*.tmp
+*~
+*.swp
+archive/
+
+# IDE-specific files
+.idea/
+.vscode/
+
+# GoLand
+*.go.work
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Package management
+/vendor

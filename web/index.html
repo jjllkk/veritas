@@ -1,0 +1,174 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Veritas - Верификатор Логических Выводов</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        width: 500px;
+        border: 1px solid #ccc;
+        padding: 20px;
+        border-radius: 5px;
+      }
+
+      label {
+        margin-bottom: 5px;
+      }
+
+      input[type="text"] {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        margin-bottom: 10px;
+      }
+
+      button {
+        padding: 10px 15px;
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        background-color: #ddd;
+        cursor: not-allowed;
+      }
+
+      #exprContainer {
+        margin-top: 10px;
+        border: 1px solid #ccc;
+        padding: 10px;
+        border-radius: 3px;
+      }
+
+      #exprContainer div {
+        margin-bottom: 5px;
+      }
+
+      #results {
+        margin-top: 20px;
+        font-size: 18px;
+      }
+
+      .error {
+        color: red;
+      }
+
+      .success {
+        color: green;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Верификатор логических выводов</h1>
+    <script src="wasm_exec.js"></script>
+    <script>
+      if (!WebAssembly.instantiateStreaming) {
+        // polyfill
+        WebAssembly.instantiateStreaming = async (resp, importObject) => {
+          const source = await (await resp).arrayBuffer();
+          return await WebAssembly.instantiate(source, importObject);
+        };
+      }
+
+      const go = new Go();
+      let mod, inst;
+      WebAssembly.instantiateStreaming(fetch("veritas.wasm"), go.importObject)
+        .then((result) => {
+          mod = result.module;
+          inst = result.instance;
+          console.log("WebAssembly module instantiated successfully");
+          var items = document.getElementsByTagName("button");
+          for (var i = 0; i < items.length; i++) {
+            items[i].disabled = false;
+          }
+          runButton.disabled = expr_list.length === 0 || conc.length === 0;
+        })
+        .catch((err) => {
+          console.error("Error instantiating WebAssembly module:", err);
+        });
+
+      async function run() {
+        console.clear();
+        var v = "";
+        for (var i = 0; i < expr_list.length; i++) {
+          v += `${expr_list[i]},`;
+        }
+        v += document.getElementById("conc").value;
+        document.getElementById("conc").name = `${v}`;
+        await go.run(inst);
+        inst = await WebAssembly.instantiate(mod, go.importObject);
+      }
+      var expr_list = [];
+      async function addExpr() {
+        expr = document.getElementById("exprs").value;
+        if (expr.length > 0) {
+          expr_list.push(expr);
+          document.getElementById("exprs").value = "";
+          container = document.getElementById("exprContainer");
+          div = document.createElement("div");
+          div.innerHTML = expr;
+          container.appendChild(div);
+          upRun();
+        }
+      }
+      async function rmExpr() {
+        if (expr_list.length > 0) {
+          expr_list.pop();
+          container = document.getElementById("exprContainer");
+          container.removeChild(container.lastChild);
+          upRun();
+        }
+      }
+      function upRun() {
+        const runButton = document.getElementById("runButton");
+        const conc = document.getElementById("conc").value;
+        runButton.disabled = expr_list.length === 0 || conc.length === 0;
+      }
+    </script>
+    <button onClick="run();" id="runButton" disabled>Верифицировать</button>
+    <div style="table-layout: fixed">
+      <div>Поле для ввода посылок</div>
+      <input type="text" id="exprs" name="a" />
+      <button onClick="addExpr();" id="addItem" disabled>+</button>
+      <button onClick="rmExpr();" id="rmItem" disabled>-</button>
+      <div>Поле для ввода следствия</div>
+      <input type="text" id="conc" name="a" />
+      <br />
+      Список посылок:
+      <div id="exprContainer"></div>
+    </div>
+    <div id="results"></div>
+    <div id="documentation">
+      <h2>Документация:</h2>
+      <dl>
+        ИЛИ: | <br />
+        И: & <br />
+        Исключающее ИЛИ: ^ <br />
+        НЕ: ! <br />
+        Импликация: @ <br />
+        Скобки: ( и ) <br />
+      </dl>
+      <p>Пример: (A^B)@(A&B)@(C|!D)</p>
+    </div>
+    <script>
+      document.getElementById("conc").addEventListener("input", upRun);
+    </script>
+  </body>
+</html>
